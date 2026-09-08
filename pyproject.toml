@@ -13,8 +13,9 @@ dependencies = ["pydantic>=2,<3"]
 api = ["fastapi>=0.110", "uvicorn[standard]>=0.29"]
 ui = ["streamlit>=1.35"]
 rag = ["chromadb>=0.5"]
+langgraph = ["langgraph>=0.2"]
 dev = ["pytest>=8", "ruff>=0.6"]
-all = ["fastapi>=0.110", "uvicorn[standard]>=0.29", "streamlit>=1.35", "chromadb>=0.5", "pytest>=8", "ruff>=0.6"]
+all = ["fastapi>=0.110", "uvicorn[standard]>=0.29", "streamlit>=1.35", "chromadb>=0.5", "langgraph>=0.2", "pytest>=8", "ruff>=0.6"]
 
 [project.scripts]
 codeforge = "codeforge.__main__:main"
