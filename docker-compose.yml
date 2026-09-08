@@ -10,6 +10,7 @@ services:
       CODEFORGE_MODEL: ${CODEFORGE_MODEL:-qwen2.5-coder:7b}
       CODEFORGE_DB_URL: postgresql://codeforge:codeforge@postgres:5432/codeforge
     depends_on: [ollama, postgres]
+    ports: ["8000:8000"]
   ollama:
     image: ollama/ollama:latest
     volumes: [ollama_data:/root/.ollama]
