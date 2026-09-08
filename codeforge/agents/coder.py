@@ -1,4 +1,5 @@
 """Coder Agent: performs safe targeted patch-based edits on workspace files."""
+import difflib
 from typing import Optional
 from codeforge.core.state import TaskState, TaskPhase, FileChange
 from codeforge.core.tools.base import ToolRole
@@ -24,13 +25,25 @@ class CoderAgent:
             replacement = patch_suggestion.get("replacement_snippet")
             full_content = patch_suggestion.get("full_content")
             if rel_path and full_content is not None:
+                from codeforge.core.tools.workspace_tools import resolve_safe_path
+                try:
+                    safe_path = resolve_safe_path(self.repo_path, rel_path)
+                    with open(safe_path, "r", encoding="utf-8") as f: original = f.read()
+                except FileNotFoundError:
+                    original = ""
                 res = self.write_tool.execute(ToolRole.CODER, rel_path=rel_path, content=full_content)
-                if not res.success: state.log(f"Write tool error: {res.error}"); return state
-                state.changed_files.append(FileChange(file_path=rel_path, action="edit", new_snippet=full_content, diff=f"Updated full content of {rel_path}"))
+                if not res.success:
+                    state.log(f"Write tool error: {res.error}")
+                    return state
+                diff_str = "".join(difflib.unified_diff(original.splitlines(True), full_content.splitlines(True), fromfile=f"a/{rel_path}", tofile=f"b/{rel_path}"))
+                state.changed_files.append(FileChange(file_path=rel_path, action="edit", original_snippet=original, new_snippet=full_content, diff=diff_str))
+                state.diff += "\n" + diff_str
                 state.log(f"Updated full content for {rel_path}")
             elif rel_path and target is not None and replacement is not None:
                 res = self.patch_tool.execute(ToolRole.CODER, rel_path=rel_path, target_snippet=target, replacement_snippet=replacement)
-                if not res.success: state.log(f"Patch tool error: {res.error}"); return state
+                if not res.success:
+                    state.log(f"Patch tool error: {res.error}")
+                    return state
                 diff_str = res.data.get("diff", "")
                 state.changed_files.append(FileChange(file_path=rel_path, action="edit", original_snippet=target, new_snippet=replacement, diff=diff_str))
                 state.diff += "\n" + diff_str
