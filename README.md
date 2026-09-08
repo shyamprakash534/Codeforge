@@ -1,47 +1,83 @@
-# CodeForge
+# CodeForge — Autonomous Software Factory
 
-CodeForge is a security-conscious coding-agent foundation for researching a repository, applying targeted changes, testing them, and producing structured workflow state.
+CodeForge turns a high-level software request into a controlled engineering workflow: **plan → research → architect → code → test → debug → review → security → approval**.
 
-## Current scope
+## Architecture
 
-- Typed workflow state and task phases
-- Role-based tool access control
-- Workspace-confined file tools
-- Repository AST scanning and lightweight hybrid retrieval
-- Static security policy checks for secrets, dangerous calls, path traversal, and prompt injection
-- Researcher and coder agents
-- JSON trace collection
-- Local CLI for repository scanning and security checks
+- **Agents:** Planner, Repository Researcher, Architect, Coder, Tester, Debugger, Reviewer
+- **Orchestration:** typed `TaskState` workflow with explicit phases and retry budget
+- **RAG:** AST-aware repository ingestion + hybrid lexical retrieval; optional ChromaDB adapter
+- **Local LLM:** optional Ollama client (no hosted API required)
+- **Tools:** workspace/file, Git, safe shell, test runner, Docker sandbox, database, security, web search, GitHub PR
+- **Security:** RBAC, workspace confinement, secret detection, dangerous-call detection, path traversal checks, prompt-injection patterns, human approval gate
+- **Interfaces:** CLI, optional FastAPI API, optional Streamlit UI
+- **Observability:** structured task logs, trace spans, evaluation reports
+- **Infrastructure:** Dockerfile and Docker Compose for local Ollama-backed operation
 
 ## Quick start
 
 ```bash
-python -m pip install -e .
-python -m codeforge --help
-python -m codeforge scan .
-python -m codeforge security .
+python -m pip install -e '.[dev]'
+codeforge scan .
+codeforge security .
+codeforge run "Add a health endpoint" --repo .
 ```
 
-CodeForge does not execute arbitrary generated commands. Any future execution/sandbox layer should enforce the configured command allow-list, timeout, resource limits, and workspace confinement before execution.
+### Optional interfaces
 
-## Project layout
-
-```text
-codeforge/
-  agents/
-  core/
-    retrieval/
-    security/
-    tools/
-  ingestion/
-  observability/
-tests/
+```bash
+python -m pip install -e '.[api]'
+uvicorn codeforge.api.main:app --reload
 ```
 
-## Development
+```bash
+python -m pip install -e '.[ui]'
+streamlit run codeforge/ui/streamlit_app.py
+```
+
+### Local LLM
+
+Set `CODEFORGE_LLM_PROVIDER=ollama`, `OLLAMA_BASE_URL`, and `CODEFORGE_MODEL` when you want the local Ollama adapter. The core workflow remains usable without an LLM service.
+
+### Docker
+
+```bash
+docker compose up --build
+```
+
+## Safe code changes
+
+The Coder agent accepts explicit patch suggestions rather than executing unrestricted generated code. Execution tools use `shell=False`, allow-lists, timeouts, and (when enabled) a network-isolated Docker sandbox. Sensitive changes can remain pending until a human approval is supplied.
+
+## Tests
 
 ```bash
 python -m pytest
 ```
 
-The initial implementation is intentionally dependency-light. Pydantic is used for validated state and tool arguments.
+CI runs the test suite on pushes and pull requests.
+
+## Project layout
+
+```text
+codeforge/
+  agents/              # Planner, Researcher, Architect, Coder, Tester, Debugger, Reviewer
+  api/                 # FastAPI interface
+  approval/            # Human-in-the-loop gate
+  core/                # State, settings, retrieval, security, orchestration, tools
+  evaluation/          # Evaluation reports and metrics
+  ingestion/           # Repository AST/source scanner
+  llm/                 # Local Ollama adapter
+  observability/       # JSON trace collector
+  tools/               # Git, test, shell, Docker, DB, security, web, GitHub tools
+  ui/                  # Streamlit interface
+
+tests/
+Dockerfile
+docker-compose.yml
+pyproject.toml
+```
+
+## Design goal
+
+CodeForge is designed as a **local-first, security-conscious software factory**. External services are optional adapters, not hidden requirements.
