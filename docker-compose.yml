@@ -8,13 +8,28 @@ services:
       CODEFORGE_LLM_PROVIDER: ${CODEFORGE_LLM_PROVIDER:-local}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       CODEFORGE_MODEL: ${CODEFORGE_MODEL:-qwen2.5-coder:7b}
-    depends_on:
-      - ollama
+      CODEFORGE_DB_URL: postgresql://codeforge:codeforge@postgres:5432/codeforge
+    depends_on: [ollama, postgres]
   ollama:
     image: ollama/ollama:latest
-    volumes:
-      - ollama_data:/root/.ollama
-    ports:
-      - "11434:11434"
+    volumes: [ollama_data:/root/.ollama]
+    ports: ["11434:11434"]
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: codeforge
+      POSTGRES_PASSWORD: codeforge
+      POSTGRES_DB: codeforge
+    volumes: [postgres_data:/var/lib/postgresql/data]
+    ports: ["5432:5432"]
+  prometheus:
+    image: prom/prometheus:latest
+    volumes: [./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro]
+    ports: ["9090:9090"]
+  grafana:
+    image: grafana/grafana:latest
+    ports: ["3000:3000"]
+    depends_on: [prometheus]
 volumes:
   ollama_data:
+  postgres_data:
