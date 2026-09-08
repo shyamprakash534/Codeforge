@@ -8,9 +8,11 @@ def scan_repository(path):
     chunks=RepositoryScanner(path).scan(); return {'files':len({c.file_path for c in chunks}),'chunks':len(chunks)}
 def security_scan(path):
     findings=[]
-    for c in RepositoryScanner(path).scan():
-        if c.symbol is None: findings.extend(SecurityPolicyEngine.scan_content(c.file_path,c.content))
-    return findings
+    for chunk in RepositoryScanner(path).scan():
+        findings.extend(SecurityPolicyEngine.scan_content(chunk.file_path, chunk.content))
+    # AST scanning creates overlapping function/file chunks, so de-duplicate findings.
+    unique={ (f.risk_type,f.file_path,f.line_number,f.description): f for f in findings }
+    return list(unique.values())
 
 def main():
     parser=argparse.ArgumentParser(prog='codeforge',description='Autonomous, security-conscious software factory')
