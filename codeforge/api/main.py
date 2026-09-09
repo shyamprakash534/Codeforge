@@ -1,4 +1,6 @@
 """FastAPI service and web UI for CodeForge."""
+import html
+import json
 import os
 import re
 import shutil
@@ -17,7 +19,7 @@ from codeforge.core.state import TaskPhase, TaskState
 from codeforge.ingestion.ast_parser import RepositoryScanner
 from codeforge.observability.tracer import TraceCollector
 
-app = FastAPI(title="CodeForge API", version="1.3.1")
+app = FastAPI(title="CodeForge API", version="1.4.0")
 _runs = 0
 _successes = 0
 
@@ -109,21 +111,20 @@ HTML = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CodeForge — Autonomous Software Factory</title>
 <style>
-body{margin:0;font-family:system-ui,sans-serif;background:#080b14;color:#f4f7ff}main{max-width:960px;margin:auto;padding:40px 20px}.panel{background:#101625;border:1px solid #26324d;border-radius:18px;padding:24px}h1{font-size:44px;margin:0 0 10px}h1 span{color:#8b9cff}.sub,.hint{color:#a9b3ca;line-height:1.5}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.field label{display:block;font-size:13px;font-weight:700;margin-bottom:7px}input,textarea{width:100%;box-sizing:border-box;border:1px solid #303c59;background:#090e1b;color:#fff;border-radius:10px;padding:13px;font:inherit}textarea{min-height:150px;resize:vertical}.actions{display:flex;gap:12px;align-items:center;margin-top:16px}button{border:0;border-radius:10px;padding:13px 18px;background:#8b9cff;color:#080b14;font-weight:800}button:disabled{opacity:.55}.status{color:#9eacd0}.output{margin-top:18px;min-height:220px;padding:16px;background:#070a12;border:1px solid #202b43;border-radius:12px;white-space:pre-wrap;overflow:auto;font:13px/1.5 monospace}.success{border-color:#355d4b}.error{border-color:#6b3942}.flow{margin-top:16px;color:#9eacd0;font-size:13px}@media(max-width:700px){.grid{grid-template-columns:1fr}}
+body{margin:0;font-family:system-ui,sans-serif;background:#080b14;color:#f4f7ff}main{max-width:960px;margin:auto;padding:40px 20px}.panel{background:#101625;border:1px solid #26324d;border-radius:18px;padding:24px}h1{font-size:44px;margin:0 0 10px}h1 span{color:#8b9cff}.sub,.hint{color:#a9b3ca;line-height:1.5}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.field label{display:block;font-size:13px;font-weight:700;margin-bottom:7px}input,textarea{width:100%;box-sizing:border-box;border:1px solid #303c59;background:#090e1b;color:#fff;border-radius:10px;padding:13px;font:inherit}textarea{min-height:150px;resize:vertical}.actions{display:flex;gap:12px;align-items:center;margin-top:16px}button{border:0;border-radius:10px;padding:13px 18px;background:#8b9cff;color:#080b14;font-weight:800;cursor:pointer}.status{color:#9eacd0}.output{margin-top:18px;min-height:220px;padding:16px;background:#070a12;border:1px solid #202b43;border-radius:12px;white-space:pre-wrap;overflow:auto;font:13px/1.5 monospace}.flow{margin-top:16px;color:#9eacd0;font-size:13px}@media(max-width:700px){.grid{grid-template-columns:1fr}}
 </style></head><body><main>
 <h1>⚒ Code<span>Forge</span></h1>
 <p class="sub">Autonomous software engineering workflow with safe public GitHub analysis.</p>
 <section class="panel"><h2>Run an engineering task</h2>
-<p class="hint">Public GitHub URLs use analysis-only mode. Local workspaces can run the full engineering workflow.</p>
-<div class="grid"><div class="field"><label for="repo">GitHub repository URL or local path</label><input id="repo" placeholder="https://github.com/owner/repository or ."></div>
-<div class="field"><label for="request">Task</label><textarea id="request" placeholder="Analyze this repository and explain how the health-check endpoint works."></textarea></div></div>
-<div class="actions"><button id="run">Run CodeForge</button><span class="status" id="status">Ready</span></div>
-<pre class="output" id="out">Workflow output will appear here.</pre></section>
-<div class="flow">Plan → Research → Architect → Code → Test & Review → Secure & PR</div>
-</main><script>
-const btn=document.getElementById('run'),out=document.getElementById('out'),status=document.getElementById('status');
-btn.onclick=async()=>{const raw=document.getElementById('repo').value.trim(),request=document.getElementById('request').value.trim();if(!raw||!request){status.textContent='Repository and task are required.';return}btn.disabled=true;status.textContent=raw.startsWith('https://github.com/')?'Analyzing public GitHub repository…':'Running local CodeForge workflow…';out.className='output';out.textContent='CodeForge started.\n\nValidating input…\nPreparing repository…\nRunning workflow…\n\nPlease wait for the result.';try{const body={request};if(raw.startsWith('https://github.com/'))body.repo_url=raw;else body.repo_path=raw;const response=await fetch('/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const text=await response.text();let data;try{data=JSON.parse(text)}catch{data={detail:text}}if(!response.ok)throw new Error(data.detail||'Request failed');out.className='output success';out.textContent=JSON.stringify(data,null,2);status.textContent=data.result==='ANALYSIS_COMPLETE'?'✓ Analysis complete':'✓ Workflow completed'}catch(error){out.className='output error';out.textContent='Error: '+error.message;status.textContent='✗ Workflow failed'}finally{btn.disabled=false}};
-</script></body></html>"""
+<p class="hint">Public GitHub URLs use analysis-only mode. This demo uses a standard browser form, so it works even when JavaScript is blocked or cached.</p>
+<form method="get" action="/run-ui">
+<div class="grid"><div class="field"><label for="repo">GitHub repository URL or local path</label><input id="repo" name="repo_url" required placeholder="https://github.com/owner/repository"></div>
+<div class="field"><label for="request">Task</label><textarea id="request" name="request" required placeholder="Analyze this repository and explain how the health-check endpoint works."></textarea></div></div>
+<div class="actions"><button type="submit">Run CodeForge</button><span class="status">Ready — submit to start</span></div>
+</form>
+<pre class="output">Enter a public GitHub URL and task, then press Run CodeForge. The result page will appear when analysis finishes.</pre></section>
+<div class="flow">Plan → Research → Analysis Complete</div>
+</main></body></html>"""
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -133,12 +134,7 @@ def home():
 
 @app.get("/health")
 def health():
-    return {
-        "status": "ok",
-        "service": "codeforge",
-        "github_repo_input": True,
-        "public_github_mode": "analysis_only",
-    }
+    return {"status": "ok", "service": "codeforge", "github_repo_input": True, "public_github_mode": "analysis_only"}
 
 
 @app.get("/metrics")
@@ -150,6 +146,29 @@ def metrics():
         "# HELP codeforge_success_total Successful workflow runs\n"
         f"codeforge_success_total {_successes}\n"
     )
+
+
+def _result_page(result: dict) -> str:
+    payload = html.escape(json.dumps(result, indent=2, ensure_ascii=False))
+    return f"""<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>CodeForge Result</title><style>body{{margin:0;background:#080b14;color:#f4f7ff;font-family:system-ui,sans-serif}}main{{max-width:960px;margin:auto;padding:30px 20px}}pre{{white-space:pre-wrap;overflow:auto;background:#070a12;border:1px solid #26324d;border-radius:12px;padding:18px;line-height:1.5}}a{{display:inline-block;margin-bottom:18px;color:#9eacd0}}</style></head><body><main><a href='/'>← Back to CodeForge</a><h1>✓ CodeForge Result</h1><pre>{payload}</pre></main></body></html>"""
+
+
+@app.get("/run-ui", response_class=HTMLResponse)
+def run_ui(repo_url: str = "", request: str = ""):
+    global _runs, _successes
+    if not repo_url.strip() or not request.strip():
+        return HTMLResponse("<h2>Repository URL and task are required.</h2><p><a href='/'>Back to CodeForge</a></p>", status_code=400)
+    _runs += 1
+    try:
+        result = _run_workflow(RunRequest(repo_url=repo_url, request=request))
+        _successes += 1
+        return _result_page(result)
+    except subprocess.TimeoutExpired:
+        return HTMLResponse("<h2>Repository clone timed out after 90 seconds.</h2><p><a href='/'>Back to CodeForge</a></p>", status_code=504)
+    except (PermissionError, FileNotFoundError, ValueError, RuntimeError) as exc:
+        return HTMLResponse(f"<h2>CodeForge failed</h2><pre>{html.escape(str(exc))}</pre><p><a href='/'>Back to CodeForge</a></p>", status_code=502)
+    except Exception as exc:
+        return HTMLResponse(f"<h2>CodeForge execution failed</h2><pre>{html.escape(type(exc).__name__)}</pre><p><a href='/'>Back to CodeForge</a></p>", status_code=500)
 
 
 @app.post("/run")
