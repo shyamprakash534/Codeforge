@@ -2,7 +2,7 @@
 
 > **Turn a software request into a controlled engineering workflow.**
 >
-> **Plan → Research → Architect → Code → Test → Debug → Review → Security → Approval**
+> **Plan → Research → Architect → Code → Test → Debug → Review → Security → Approval → PR**
 
 [![CI](https://github.com/shyamprakash534/Codeforge/actions/workflows/ci.yml/badge.svg)](https://github.com/shyamprakash534/Codeforge/actions)
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Render-46E3B7?logo=render&logoColor=white)](https://codeforge-3l85.onrender.com)
@@ -34,7 +34,7 @@ User Request
                            Coder
                               │
                               ▼
-                 Tester ──► Debugger
+                 Tester ──► Debugger ──► Retest
                               │
                               ▼
                            Reviewer
@@ -46,19 +46,21 @@ User Request
                     Human Approval Gate
                               │
                               ▼
-                            Done
+                 Branch → Commit → Push → PR
 ```
 
 ## ✨ Highlights
 
 - **Multi-agent workflow** — separate planning, research, architecture, coding, testing, debugging and review responsibilities.
+- **LangGraph orchestration** — optional stateful graph execution with conditional retry edges and a bounded repair loop.
+- **Autonomous repair loop** — failed tests can trigger debugger-generated repair suggestions, recoding and retesting up to a retry budget.
 - **Repository-aware reasoning** — AST/source ingestion and hybrid lexical retrieval help agents understand an existing codebase.
 - **Human-in-the-loop** — sensitive changes can remain pending until explicitly approved.
 - **Security-first execution** — workspace confinement, dangerous-call detection, secret detection, path traversal checks, allow-lists and timeouts.
 - **Sandbox support** — optional Docker execution with network isolation and resource limits.
 - **Local-first LLM support** — optional Ollama adapter so a hosted model is not a hard requirement.
-- **Developer interfaces** — CLI, FastAPI and Streamlit options.
-- **GitHub integration** — tooling for repository operations and pull requests.
+- **Git lifecycle** — isolated branch creation, commit, push and GitHub pull-request creation after validation.
+- **PostgreSQL support** — the DB tool supports both SQLite and PostgreSQL through one interface.
 - **Observability and evaluation** — structured task traces, metrics and evaluation reports.
 - **Containerized development** — Dockerfile and Compose setup for local infrastructure.
 
@@ -67,14 +69,14 @@ User Request
 | Layer | Components |
 |---|---|
 | **Interface** | FastAPI, Streamlit, CLI |
-| **Orchestration** | Typed task state, workflow stages, retry budget |
+| **Orchestration** | Typed task state, LangGraph, conditional edges, retry budget |
 | **Agents** | Planner, Researcher, Architect, Coder, Tester, Debugger, Reviewer |
 | **Knowledge** | AST parser, hybrid retrieval, optional ChromaDB |
 | **LLM** | Optional local Ollama adapter |
 | **Tools** | Filesystem, Git, shell, tests, Docker, DB, web search, security, GitHub |
 | **Safety** | Workspace confinement, secret detection, policy checks, approval gate |
 | **Operations** | Logs, traces, metrics, evaluation |
-| **Infrastructure** | Docker, Docker Compose, PostgreSQL service, Ollama, Prometheus, Grafana |
+| **Infrastructure** | Docker, Docker Compose, PostgreSQL, Ollama, Prometheus, Grafana |
 
 ## 🖥️ Use the Web UI
 
@@ -85,9 +87,7 @@ Open the live demo and enter:
 3. Click **Run CodeForge**.
 4. Inspect the returned workflow state and results.
 
-For API clients, use the interactive FastAPI documentation at:
-
-`https://codeforge-3l85.onrender.com/docs`
+For API clients, use the interactive FastAPI documentation at `/docs`.
 
 ## ⚡ Quick Start
 
@@ -122,17 +122,44 @@ streamlit run codeforge/ui/streamlit_app.py
 docker compose up --build
 ```
 
-## 🤖 Local LLM with Ollama
+## 🤖 Autonomous Repair and LangGraph
 
-Set the following environment variables when using the local Ollama adapter:
+For graph execution:
 
 ```bash
-CODEFORGE_LLM_PROVIDER=ollama
-OLLAMA_BASE_URL=http://localhost:11434
-CODEFORGE_MODEL=<your-model>
+CODEFORGE_USE_LANGGRAPH=1
 ```
 
-The core workflow remains usable without an LLM service.
+For Ollama-powered repair suggestions:
+
+```bash
+CODEFORGE_ENABLE_OLLAMA_REPAIR=1
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=qwen2.5-coder:7b
+```
+
+The repair cycle is bounded by `TaskState.max_retries` (default: 3). If a safe repair cannot be generated, CodeForge stops retrying rather than guessing indefinitely.
+
+## 🔀 GitHub Pull Requests
+
+When the workspace is a Git repository, CodeForge creates an isolated `codeforge/<task-id>` branch before implementation. After tests, review, security checks and approval succeed, it can commit, push and create a GitHub PR.
+
+Configure the runtime with:
+
+```bash
+GITHUB_TOKEN=<token>
+```
+
+The token is read from the environment and is never written to logs. PR delivery requires a GitHub `origin` remote and push permission.
+
+## 🗄️ Database
+
+SQLite remains the zero-configuration default. PostgreSQL is supported with:
+
+```bash
+python -m pip install -e '.[db]'
+CODEFORGE_DB_URL=postgresql://codeforge:codeforge@localhost:5432/codeforge
+```
 
 ## 🔐 Security Model
 
@@ -140,7 +167,7 @@ CodeForge is designed to make autonomous code execution controlled rather than u
 
 - Repository paths are confined to the configured workspace.
 - Shell execution uses explicit allow-lists, `shell=False` and timeouts.
-- Git operations are restricted to approved commands/options.
+- Git operations use fixed argument lists and validated branch names.
 - Docker sandbox execution can disable networking and limit CPU/memory.
 - Security scanning checks source content for dangerous patterns and secrets.
 - Prompt-injection patterns are treated as security findings.
@@ -173,8 +200,8 @@ codeforge/
 
 tests/                   # Automated tests
 Dockerfile               # Container image
- docker-compose.yml      # Local multi-service stack
-pyproject.toml            # Package and dependency configuration
+docker-compose.yml       # Local multi-service stack
+pyproject.toml           # Package and dependency configuration
 ```
 
 ## 🛣️ Roadmap
@@ -186,10 +213,10 @@ pyproject.toml            # Package and dependency configuration
 - [x] Web UI and live Render deployment
 - [x] Docker sandbox tooling
 - [x] GitHub PR tooling
-- [ ] Fully connected LangGraph execution backend
-- [ ] Autonomous code → test → debug → retest loop
-- [ ] End-to-end branch → commit → PR automation
-- [ ] Production PostgreSQL adapter
+- [x] Connected LangGraph execution backend
+- [x] Autonomous code → test → debug → retest loop
+- [x] End-to-end branch → commit → PR automation
+- [x] PostgreSQL adapter
 - [ ] Expanded integration and security test suite
 
 ## 🎯 Design Goal
