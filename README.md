@@ -204,6 +204,17 @@ docker-compose.yml       # Local multi-service stack
 pyproject.toml           # Package and dependency configuration
 ```
 
+## 🧠 Engineering Trade-offs
+
+CodeForge deliberately favors **controlled autonomy over unrestricted automation**.
+
+- **Human approval vs. full autonomy:** sensitive changes can pause for approval before Git operations and PR creation.
+- **Local-first vs. hosted LLMs:** Ollama keeps the core workflow usable without mandatory API billing, while hosted providers can be added through adapters.
+- **Bounded repair vs. infinite retries:** the debugger/retest loop uses a retry budget so failed changes do not trigger unbounded autonomous edits.
+- **Security vs. tool flexibility:** shell, filesystem, Git and Docker tools are constrained by policies, paths, timeouts and resource limits.
+- **Repository understanding vs. simplicity:** AST/source ingestion and retrieval add complexity, but give agents more context than treating the repository as a single prompt.
+- **Prototype vs. production:** the project demonstrates an engineering architecture; it should not be treated as a production-safe autonomous coding service without additional hardening, testing and operational controls.
+
 ## 🛣️ Roadmap
 
 - [x] Agent-based engineering workflow
