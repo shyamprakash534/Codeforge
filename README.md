@@ -236,7 +236,9 @@ CodeForge aims to be a **local-first, security-conscious software factory** wher
 
 ## License
 
-See the repository for the current project license and contribution terms.
+**No license is currently declared in the repository.**
+
+If you intend others to legally reuse, modify or redistribute the source, add an explicit open-source license to the repository and update this section accordingly.
 
 ---
 
